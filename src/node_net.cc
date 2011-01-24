@@ -1300,6 +1300,90 @@ static Handle<Value> SetTTL(const Arguments& args) {
   }
 }
 
+static Handle<Value> SetMulticastTTL(const Arguments& args) {
+  HandleScope scope;
+
+  if (args.Length() != 2) {
+    return ThrowException(Exception::TypeError(
+      String::New("Takes exactly two arguments: fd, new MulticastTTL")));
+  }
+
+  FD_ARG(args[0]);
+
+  if (! args[1]->IsInt32()) {
+    return ThrowException(Exception::TypeError(
+      String::New("Argument must be a number")));
+  }
+
+  int newttl = args[1]->Int32Value();
+  if (newttl < 0 || newttl > 255) {
+    return ThrowException(Exception::TypeError(
+      String::New("new MulticastTTL must be between 0 and 255")));
+  }
+
+  int r = setsockopt(fd, IPPROTO_IP, IP_MULTICAST_TTL, (void *)&newttl, sizeof(newttl));
+
+  if (r < 0) {
+    return ThrowException(ErrnoException(errno, "setsockopt"));
+  } else {
+    return scope.Close(Integer::New(newttl));
+  }
+}
+
+static Handle<Value> SetMulticastLoopback(const Arguments& args) {
+  int flags, r;
+  HandleScope scope;
+
+  FD_ARG(args[0])
+
+  flags = args[1]->IsFalse() ? 0 : 1;
+  r = setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, (void *)&flags, sizeof(flags));
+
+  if (r < 0) {
+    return ThrowException(ErrnoException(errno, "setsockopt"));
+  } else {
+    return scope.Close(Integer::New(flags));
+  }
+}
+
+static Handle<Value> AddMembership(const Arguments& args) {
+  HandleScope scope;
+
+  if (args.Length() < 2 || args.Length() > 3) {
+    return ThrowException(Exception::TypeError(
+      String::New("Takes arguments: fd, multicast group, multicast address")));
+  }
+
+  FD_ARG(args[0]);
+
+  struct ip_mreq mreq;
+  memset(&mreq, 0, sizeof(mreq));
+
+  // Multicast address (arg[1])
+  String::Utf8Value multicast_address(args[1]->ToString());
+  if (inet_pton(AF_INET, *multicast_address, &(mreq.imr_multiaddr.s_addr)) <= 0) {
+    return ErrnoException(errno, "inet_pton", "Invalid multicast address");
+  }
+
+  // Interface address (arg[2] - optional, default:INADDR_ANY)
+  if (args.Length() < 3 || !args[2]->IsString()) {
+    mreq.imr_interface.s_addr = htonl(INADDR_ANY);
+  } else {
+    String::Utf8Value multicast_interface(args[2]->ToString());
+    if (inet_pton(AF_INET, *multicast_interface, &(mreq.imr_interface.s_addr)) <= 0) {
+      return ErrnoException(errno, "inet_pton", "Invalid multicast interface");
+    }
+  }
+
+  int r = setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (void*) &mreq, sizeof(mreq));
+
+  if (r < 0) {
+    return ThrowException(ErrnoException(errno, "setsockopt"));
+  } else {
+    return Undefined();
+  }
+}
+
 
 //
 // G E T A D D R I N F O
@@ -1534,6 +1618,9 @@ void InitNet(Handle<Object> target) {
   NODE_SET_METHOD(target, "setBroadcast", SetBroadcast);
   NODE_SET_METHOD(target, "setTTL", SetTTL);
   NODE_SET_METHOD(target, "setKeepAlive", SetKeepAlive);
+  NODE_SET_METHOD(target, "setMulticastTTL", SetMulticastTTL);
+  NODE_SET_METHOD(target, "setMulticastLoopback", SetMulticastLoopback);
+  NODE_SET_METHOD(target, "addMembership", AddMembership);
   NODE_SET_METHOD(target, "getsockname", GetSockName);
   NODE_SET_METHOD(target, "getpeername", GetPeerName);
   NODE_SET_METHOD(target, "getaddrinfo", GetAddrInfo);
