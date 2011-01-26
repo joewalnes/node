@@ -1280,18 +1280,19 @@ static Handle<Value> SetTTL(const Arguments& args) {
 
   FD_ARG(args[0]);
 
-  if (! args[1]->IsInt32()) {
+  if (!args[1]->IsInt32()) {
     return ThrowException(Exception::TypeError(
       String::New("Argument must be a number")));
   }
-  
+
   int newttl = args[1]->Int32Value();
   if (newttl < 1 || newttl > 255) {
     return ThrowException(Exception::TypeError(
       String::New("new TTL must be between 1 and 255")));
   }
 
-  int r = setsockopt(fd, IPPROTO_IP, IP_TTL, (void *)&newttl, sizeof(newttl));
+  int r = setsockopt(fd, IPPROTO_IP, IP_TTL,
+    reinterpret_cast<void*>(&newttl), sizeof(newttl));
 
   if (r < 0) {
     return ThrowException(ErrnoException(errno, "setsockopt"));
@@ -1310,7 +1311,7 @@ static Handle<Value> SetMulticastTTL(const Arguments& args) {
 
   FD_ARG(args[0]);
 
-  if (! args[1]->IsInt32()) {
+  if (!args[1]->IsInt32()) {
     return ThrowException(Exception::TypeError(
       String::New("Argument must be a number")));
   }
@@ -1321,7 +1322,8 @@ static Handle<Value> SetMulticastTTL(const Arguments& args) {
       String::New("new MulticastTTL must be between 0 and 255")));
   }
 
-  int r = setsockopt(fd, IPPROTO_IP, IP_MULTICAST_TTL, (void *)&newttl, sizeof(newttl));
+  int r = setsockopt(fd, IPPROTO_IP, IP_MULTICAST_TTL,
+    reinterpret_cast<void*>(&newttl), sizeof(newttl));
 
   if (r < 0) {
     return ThrowException(ErrnoException(errno, "setsockopt"));
@@ -1337,7 +1339,8 @@ static Handle<Value> SetMulticastLoopback(const Arguments& args) {
   FD_ARG(args[0])
 
   flags = args[1]->IsFalse() ? 0 : 1;
-  r = setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, (void *)&flags, sizeof(flags));
+  r = setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP,
+    reinterpret_cast<void*>(&flags), sizeof(flags));
 
   if (r < 0) {
     return ThrowException(ErrnoException(errno, "setsockopt"));
@@ -1361,7 +1364,8 @@ static Handle<Value> SetMembership(const Arguments& args, int socketOption) {
 
   // Multicast address (arg[1])
   String::Utf8Value multicast_address(args[1]->ToString());
-  if (inet_pton(AF_INET, *multicast_address, &(mreq.imr_multiaddr.s_addr)) <= 0) {
+  if (inet_pton(
+      AF_INET, *multicast_address, &(mreq.imr_multiaddr.s_addr)) <= 0) {
     return ErrnoException(errno, "inet_pton", "Invalid multicast address");
   }
 
@@ -1370,12 +1374,14 @@ static Handle<Value> SetMembership(const Arguments& args, int socketOption) {
     mreq.imr_interface.s_addr = htonl(INADDR_ANY);
   } else {
     String::Utf8Value multicast_interface(args[2]->ToString());
-    if (inet_pton(AF_INET, *multicast_interface, &(mreq.imr_interface.s_addr)) <= 0) {
+    if (inet_pton(
+        AF_INET, *multicast_interface, &(mreq.imr_interface.s_addr)) <= 0) {
       return ErrnoException(errno, "inet_pton", "Invalid multicast interface");
     }
   }
 
-  int r = setsockopt(fd, IPPROTO_IP, socketOption, (void*) &mreq, sizeof(mreq));
+  int r = setsockopt(fd, IPPROTO_IP, socketOption,
+    reinterpret_cast<void*>(&mreq), sizeof(mreq));
 
   if (r < 0) {
     return ThrowException(ErrnoException(errno, "setsockopt"));
