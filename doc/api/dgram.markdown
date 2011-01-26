@@ -189,3 +189,13 @@ Tells the kernel to join a multicast group with `IP_ADD_MEMBERSHIP` socket optio
 
 If `multicastAddress` is not specified, the OS will try to add membership to all valid
 interfaces.
+
+### dgram.dropMembership(multicastAddress, [multicastInterface])
+
+Opposite of `dropMembership` - tells the kernel to leave a multicast group with
+`IP_DROP_MEMBERSHIP` socket option. This is automatically called by the kernel
+when the socket is closed or process terminates, so most apps will never need to call
+this.
+
+If `multicastAddress` is not specified, the OS will try to add membership to all valid
+interfaces.

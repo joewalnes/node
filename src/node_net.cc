@@ -1346,7 +1346,7 @@ static Handle<Value> SetMulticastLoopback(const Arguments& args) {
   }
 }
 
-static Handle<Value> AddMembership(const Arguments& args) {
+static Handle<Value> SetMembership(const Arguments& args, int socketOption) {
   HandleScope scope;
 
   if (args.Length() < 2 || args.Length() > 3) {
@@ -1375,7 +1375,7 @@ static Handle<Value> AddMembership(const Arguments& args) {
     }
   }
 
-  int r = setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (void*) &mreq, sizeof(mreq));
+  int r = setsockopt(fd, IPPROTO_IP, socketOption, (void*) &mreq, sizeof(mreq));
 
   if (r < 0) {
     return ThrowException(ErrnoException(errno, "setsockopt"));
@@ -1384,6 +1384,13 @@ static Handle<Value> AddMembership(const Arguments& args) {
   }
 }
 
+static Handle<Value> AddMembership(const Arguments& args) {
+  return SetMembership(args, IP_ADD_MEMBERSHIP);
+}
+
+static Handle<Value> DropMembership(const Arguments& args) {
+  return SetMembership(args, IP_DROP_MEMBERSHIP);
+}
 
 //
 // G E T A D D R I N F O
@@ -1621,6 +1628,7 @@ void InitNet(Handle<Object> target) {
   NODE_SET_METHOD(target, "setMulticastTTL", SetMulticastTTL);
   NODE_SET_METHOD(target, "setMulticastLoopback", SetMulticastLoopback);
   NODE_SET_METHOD(target, "addMembership", AddMembership);
+  NODE_SET_METHOD(target, "dropMembership", DropMembership);
   NODE_SET_METHOD(target, "getsockname", GetSockName);
   NODE_SET_METHOD(target, "getpeername", GetPeerName);
   NODE_SET_METHOD(target, "getaddrinfo", GetAddrInfo);
